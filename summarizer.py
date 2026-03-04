@@ -66,7 +66,7 @@ def summarize_content(content: str, api_config: dict, timeout: int = 300, summar
     """Send content to OpenAI-compatible API and get summary."""
     url = api_config.get('url', 'http://localhost:11434/v1/chat/completions')
     api_key = api_config.get('api_key', '')
-    model = api_config.get('model', 'gpt-3.5-turbo')
+    model = api_config.get('model', 'llama3.2')
 
     headers = {
         'Content-Type': 'application/json',
@@ -354,3 +354,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
