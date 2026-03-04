@@ -23,7 +23,7 @@ pip install requests PyPDF2
 python summarizer.py --config config.json
 
 # Using CLI arguments only
-python summarizer.py --url http://localhost:11434/v1/chat/completions --model llama2 --folder ./docs
+python summarizer.py --url http://localhost:11434/v1/chat/completions --model llama3.2 --folder ./docs
 ```
 
 ## Configuration
