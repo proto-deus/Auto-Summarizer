@@ -12,6 +12,8 @@ A Python script that summarizes documents in a folder (including subfolders) usi
 
 ## Installation
 
+Install the requirments
+
 ```bash
 pip install requests PyPDF2
 ```
