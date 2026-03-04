@@ -56,7 +56,7 @@ python summarizer.py --url http://localhost:11434/v1/chat/completions --model ll
 | `--no-recursive` | Disable subfolder search | recursive enabled |
 | `--url` | API endpoint URL | localhost:11434 |
 | `--api-key` | API authentication key | (none) |
-| `-m, --model` | Model name | gpt-3.5-turbo |
+| `-m, --model` | Model name | (none) |
 | `-t, --timeout` | Request timeout (seconds) | 300 |
 | `--max-tokens` | Max response tokens | 1000 |
 | `--temperature` | API temperature (0-2) | 0.3 |
