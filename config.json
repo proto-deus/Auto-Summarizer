@@ -1,6 +1,6 @@
 {
   "url": "http://localhost:11434/v1/chat/completions",
-  "api_key": "your-api-key-here",
+  "api_key": "",
   "model": "llama3.2",
   "timeout": 300,
   "max_tokens": 1000,
