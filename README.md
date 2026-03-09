@@ -13,7 +13,7 @@ A Python script that summarizes documents in a folder (including subfolders) usi
 
 ## Installation
 
-Install the requirments
+Install the requirements
 
 ```bash
 pip install requests PyPDF2
