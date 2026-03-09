@@ -9,6 +9,7 @@ A Python script that summarizes documents in a folder (including subfolders) usi
 - **Flexible configuration**: Use CLI arguments, config.json, or both
 - **Customizable summaries**: Set target word count, max tokens, and temperature
 - **Markdown output**: Results formatted as titles with summaries in Markdown
+- **Add Tags**: Add tags to the summaries either maunally or automaticaaly by the model.
 
 ## Installation
 
@@ -45,6 +46,7 @@ python summarizer.py --url http://localhost:11434/v1/chat/completions --model ll
     "folder": "./docs",
     "output": "summaries.md",
     "recursive": true
+    "auto_tag": true
 }
 ```
 
@@ -64,6 +66,8 @@ python summarizer.py --url http://localhost:11434/v1/chat/completions --model ll
 | `--temperature` | API temperature (0-2) | 0.3 |
 | `--max-content-length` | Max chars sent to API | 10000 |
 | `--summary-length` | Target summary words | (none) |
+| `--tag` | Adds a tag to the summary | (none) |
+| `--auto_tag` | Has the LLM add tags to the summary | true |
 
 ## Output Format
 
