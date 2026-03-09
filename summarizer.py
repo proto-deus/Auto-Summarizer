@@ -8,6 +8,7 @@ Supports markdown, pdf, and txt files.
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -62,11 +63,11 @@ def read_document(file_path: Path) -> str:
         raise ValueError(f"Unsupported file format: {suffix}")
 
 
-def summarize_content(content: str, api_config: dict, timeout: int = 300, summary_length: int = None) -> str:
-    """Send content to OpenAI-compatible API and get summary."""
+def summarize_content(content: str, api_config: dict, timeout: int = 300, summary_length: int = None, auto_tag: bool = False) -> tuple:
+    """Send content to OpenAI-compatible API and get summary and optionally tags."""
     url = api_config.get('url', 'http://localhost:11434/v1/chat/completions')
     api_key = api_config.get('api_key', '')
-    model = api_config.get('model', 'llama3.2')
+    model = api_config.get('model', 'gpt-3.5-turbo')
 
     headers = {
         'Content-Type': 'application/json',
@@ -74,13 +75,19 @@ def summarize_content(content: str, api_config: dict, timeout: int = 300, summar
     if api_key:
         headers['Authorization'] = f'Bearer {api_key}'
 
-    # Build the prompt with optional word count target
+    # Build the prompt with optional word count target and auto-tagging
     word_count_instruction = ""
     if summary_length:
         word_count_instruction = f" The summary should be approximately {summary_length} words long."
 
+    tag_instruction = ""
+    if auto_tag:
+        tag_instruction = """
+After the summary, provide a list of 3-5 relevant tags that describe the document. Format tags as:
+[TAGS: tag1, tag2, tag3]"""
+
     prompt = f"""Please summarize the following document.
-Provide a concise summary that captures the main points.{word_count_instruction}
+Provide a concise summary that captures the main points.{word_count_instruction}{tag_instruction}
 
 Document content:
 {content}
@@ -100,7 +107,20 @@ Summary:"""
     response.raise_for_status()
 
     result = response.json()
-    return result['choices'][0]['message']['content']
+    full_response = result['choices'][0]['message']['content']
+
+    # Parse tags from response if auto-tagging is enabled
+    tags = []
+    if auto_tag:
+        # Look for [TAGS: ...] in the response
+        tag_match = re.search(r'\[TAGS:\s*(.*?)\]', full_response, re.IGNORECASE)
+        if tag_match:
+            tags_str = tag_match.group(1)
+            tags = [tag.strip() for tag in tags_str.split(',')]
+            # Remove the tags line from the summary
+            full_response = re.sub(r'\s*\[TAGS:.*?\]', '', full_response, flags=re.IGNORECASE)
+
+    return full_response.strip(), tags
 
 
 def get_supported_files(folder_path: Path, recursive: bool = True) -> list:
@@ -215,6 +235,21 @@ def main():
         help='Target summary length in words'
     )
 
+    # Tag options
+    parser.add_argument(
+        '--tag',
+        type=str,
+        action='append',
+        dest='tags',
+        help='Tags to add to each summary (can be used multiple times)'
+    )
+    parser.add_argument(
+        '--auto-tag',
+        action='store_true',
+        dest='auto_tag',
+        help='Automatically generate tags using the LLM'
+    )
+
     args = parser.parse_args()
 
     # Load configuration from file if specified
@@ -247,6 +282,10 @@ def main():
         api_config['temperature'] = args.temperature
     if args.max_content_length:
         api_config['max_content_length'] = args.max_content_length
+    if args.tags:
+        api_config['tags'] = args.tags
+    if args.auto_tag:
+        api_config['auto_tag'] = args.auto_tag
 
     # Set defaults for any missing values
     api_config.setdefault('url', 'http://localhost:11434/v1/chat/completions')
@@ -260,6 +299,15 @@ def main():
     recursive = not args.no_recursive
     if 'recursive' in api_config:
         recursive = api_config['recursive']
+
+    # Get tags and auto-tag setting
+    manual_tags = api_config.get('tags', [])
+    auto_tag = api_config.get('auto_tag', False)
+
+    # Validate: can't use both manual tags and auto-tag
+    if manual_tags and auto_tag:
+        print("Error: Cannot use both --tag and --auto-tag together")
+        sys.exit(1)
 
     # Validate required configuration
     if 'url' not in api_config:
@@ -290,6 +338,10 @@ def main():
     print(f"Temperature: {api_config['temperature']}")
     if summary_length:
         print(f"Target summary length: ~{summary_length} words")
+    if auto_tag:
+        print("Auto-tagging: enabled")
+    elif manual_tags:
+        print(f"Tags: {', '.join(manual_tags)}")
 
     # Process each file
     results = []
@@ -304,36 +356,49 @@ def main():
             if len(content) > max_length:
                 content = content[:max_length] + "...[truncated]"
 
-            summary = summarize_content(
+            # Get summary (and auto-generated tags if enabled)
+            summary, generated_tags = summarize_content(
                 content,
                 api_config,
                 timeout=api_config['timeout'],
-                summary_length=summary_length
+                summary_length=summary_length,
+                auto_tag=auto_tag
             )
 
             # Get relative path for the title
             title = get_relative_path(file_path, folder_path)
 
+            # Determine which tags to use
+            if auto_tag:
+                result_tags = generated_tags
+            else:
+                result_tags = manual_tags
+
             results.append({
                 'title': title,
                 'summary': summary,
-                'file': str(file_path)
+                'file': str(file_path),
+                'tags': result_tags
             })
             print(f"  ✓ Summarized successfully")
+            if auto_tag and generated_tags:
+                print(f"    Tags: {', '.join(generated_tags)}")
 
         except requests.exceptions.Timeout:
             print(f"  ✗ Timeout error: API took longer than {api_config['timeout']} seconds")
             results.append({
                 'title': get_relative_path(file_path, folder_path),
                 'summary': f"Error: Timeout after {api_config['timeout']} seconds",
-                'file': str(file_path)
+                'file': str(file_path),
+                'tags': []
             })
         except Exception as e:
             print(f"  ✗ Error: {e}")
             results.append({
                 'title': get_relative_path(file_path, folder_path),
                 'summary': f"Error: {str(e)}",
-                'file': str(file_path)
+                'file': str(file_path),
+                'tags': []
             })
 
     # Output results
@@ -341,6 +406,11 @@ def main():
     for result in results:
         output_lines.append(f"## {result['title']}\n")
         output_lines.append(f"{result['summary']}\n")
+
+        # Add tags if present
+        if result['tags']:
+            output_lines.append(f"\nTags: {', '.join(result['tags'])}\n")
+
         output_lines.append("---\n")
 
     output_text = '\n'.join(output_lines)
