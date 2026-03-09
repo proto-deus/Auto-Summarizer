@@ -9,7 +9,7 @@ A Python script that summarizes documents in a folder (including subfolders) usi
 - **Flexible configuration**: Use CLI arguments, config.json, or both
 - **Customizable summaries**: Set target word count, max tokens, and temperature
 - **Markdown output**: Results formatted as titles with summaries in Markdown
-- **Add Tags**: Add tags to the summaries either maunally or automaticaaly by the model.
+- **Tagging**: Add tags to the summaries either maunally or automaticaaly by the model.
 
 ## Installation
 
