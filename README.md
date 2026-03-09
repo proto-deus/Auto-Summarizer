@@ -82,6 +82,8 @@ Summary of the document content...
 
 Another summary...
 
+[TAGS: tag1, tag2, tag3]
+
 ---
 ```
 
