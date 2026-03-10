@@ -67,7 +67,7 @@ python summarizer.py --url http://localhost:11434/v1/chat/completions --model ll
 | `--max-tokens` | Max response tokens | 1000 |
 | `--temperature` | API temperature (0-2) | 0.3 |
 | `--max-content-length` | Max chars sent to API | 10000 |
-| `--summary-length` | Target summary words | (none) |
+| `--summary-length` | Target summary words | 150 words |
 | `--tag` | Adds a tag to the summary | (none) |
 | `--auto_tag` | Has the LLM add tags to the summary | true |
 | `--num_tags` | Number of tags for the LLM to generate | 5 |
