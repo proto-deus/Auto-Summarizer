@@ -10,5 +10,7 @@
   "folder": "./docs",
   "output": "summaries.md",
   "recursive": true,
-  "auto_tag": true
+  "tags": [],
+  "auto_tag": true,
+  "num_tags": 10
 }
