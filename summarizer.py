@@ -4,7 +4,6 @@ Document Summarizer Script
 Summarizes documents in a folder using an OpenAI-compatible API.
 Supports markdown, pdf, and txt files.
 """
-
 import argparse
 import json
 import os
@@ -42,7 +41,6 @@ def read_pdf_file(file_path: Path) -> str:
     """Read content from a PDF file."""
     if PyPDF2 is None:
         raise ImportError("PyPDF2 is required for PDF support")
-
     text = []
     with open(file_path, 'rb') as f:
         reader = PyPDF2.PdfReader(f)
@@ -54,7 +52,6 @@ def read_pdf_file(file_path: Path) -> str:
 def read_document(file_path: Path) -> str:
     """Read document content based on file extension."""
     suffix = file_path.suffix.lower()
-
     if suffix == '.pdf':
         return read_pdf_file(file_path)
     elif suffix in ['.txt', '.md', '.markdown', '.text']:
@@ -63,7 +60,7 @@ def read_document(file_path: Path) -> str:
         raise ValueError(f"Unsupported file format: {suffix}")
 
 
-def summarize_content(content: str, api_config: dict, timeout: int = 300, summary_length: int = None, auto_tag: bool = False) -> tuple:
+def summarize_content(content: str, api_config: dict, timeout: int = 300, summary_length: int = None, auto_tag: bool = False, num_tags: int = 5) -> tuple:
     """Send content to OpenAI-compatible API and get summary and optionally tags."""
     url = api_config.get('url', 'http://localhost:11434/v1/chat/completions')
     api_key = api_config.get('api_key', '')
@@ -82,16 +79,18 @@ def summarize_content(content: str, api_config: dict, timeout: int = 300, summar
 
     tag_instruction = ""
     if auto_tag:
-        tag_instruction = """
-After the summary, provide a list of 3-5 relevant tags that describe the document. Format tags as:
-[TAGS: tag1, tag2, tag3]"""
+        tag_instruction = f"""
+After the summary, add tags for the document.
+1. First, create tags for the author's full name(s) (one tag per author if present).
+2. Then, create general topic tags describing the document. Aim for approximately {num_tags} total tags.
+Format the output as:
+[Tags: Author Name, Another Author, Topic 1, Topic 2, ...]"""
 
     prompt = f"""Please summarize the following document.
 Provide a concise summary that captures the main points.{word_count_instruction}{tag_instruction}
 
 Document content:
 {content}
-
 Summary:"""
 
     data = {
@@ -130,7 +129,6 @@ def get_supported_files(folder_path: Path, recursive: bool = True) -> list:
         extensions.append('.pdf')
 
     files = set()
-
     if recursive:
         # Recursively search subdirectories
         for ext in extensions:
@@ -249,6 +247,13 @@ def main():
         dest='auto_tag',
         help='Automatically generate tags using the LLM'
     )
+    parser.add_argument(
+        '--num-tags',
+        type=int,
+        dest='num_tags',
+        default=None,  # Changed from 5 to None
+        help='Number of tags to generate when using --auto-tag (default: 5)'
+    )
 
     args = parser.parse_args()
 
@@ -287,6 +292,10 @@ def main():
     if args.auto_tag:
         api_config['auto_tag'] = args.auto_tag
 
+    # Handle num_tags from CLI, override config if CLI was used
+    if args.num_tags is not None:
+        api_config['num_tags'] = args.num_tags
+
     # Set defaults for any missing values
     api_config.setdefault('url', 'http://localhost:11434/v1/chat/completions')
     api_config.setdefault('timeout', 300)
@@ -294,6 +303,7 @@ def main():
     api_config.setdefault('max_tokens', 1000)
     api_config.setdefault('temperature', 0.3)
     api_config.setdefault('max_content_length', 10000)
+    api_config.setdefault('num_tags', 5) # Default for tag generation
 
     # Determine if we should search recursively
     recursive = not args.no_recursive
@@ -303,6 +313,7 @@ def main():
     # Get tags and auto-tag setting
     manual_tags = api_config.get('tags', [])
     auto_tag = api_config.get('auto_tag', False)
+    num_tags = api_config.get('num_tags', 5)
 
     # Validate: can't use both manual tags and auto-tag
     if manual_tags and auto_tag:
@@ -339,7 +350,7 @@ def main():
     if summary_length:
         print(f"Target summary length: ~{summary_length} words")
     if auto_tag:
-        print("Auto-tagging: enabled")
+        print(f"Auto-tagging: enabled ({num_tags} tags)")
     elif manual_tags:
         print(f"Tags: {', '.join(manual_tags)}")
 
@@ -347,7 +358,6 @@ def main():
     results = []
     for file_path in files:
         print(f"\nProcessing: {file_path}")
-
         try:
             content = read_document(file_path)
 
@@ -362,7 +372,8 @@ def main():
                 api_config,
                 timeout=api_config['timeout'],
                 summary_length=summary_length,
-                auto_tag=auto_tag
+                auto_tag=auto_tag,
+                num_tags=num_tags
             )
 
             # Get relative path for the title
@@ -380,6 +391,7 @@ def main():
                 'file': str(file_path),
                 'tags': result_tags
             })
+
             print(f"  ✓ Summarized successfully")
             if auto_tag and generated_tags:
                 print(f"    Tags: {', '.join(generated_tags)}")
@@ -419,9 +431,9 @@ def main():
     output_path = Path(api_config['output'])
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(output_text)
+
     print(f"\nResults written to: {output_path.absolute()}")
 
 
 if __name__ == '__main__':
     main()
-
