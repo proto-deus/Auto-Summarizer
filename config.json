@@ -9,6 +9,6 @@
   "summary_length": 150,
   "folder": "./docs",
   "output": "summaries.md",
-  "recursive": true
+  "recursive": true,
   "auto_tag": true
 }
