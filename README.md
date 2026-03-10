@@ -89,9 +89,3 @@ Another summary...
 
 ---
 ```
-
-## Requirements
-
-- Python 3.7+
-- `requests` library
-- `PyPDF2` library (for PDF support)
