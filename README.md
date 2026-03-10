@@ -46,7 +46,9 @@ python summarizer.py --url http://localhost:11434/v1/chat/completions --model ll
     "folder": "./docs",
     "output": "summaries.md",
     "recursive": true
-    "auto_tag": true
+    "tags": [],
+    "auto_tag": true,
+    "num_tags": 10
 }
 ```
 
@@ -68,6 +70,7 @@ python summarizer.py --url http://localhost:11434/v1/chat/completions --model ll
 | `--summary-length` | Target summary words | (none) |
 | `--tag` | Adds a tag to the summary | (none) |
 | `--auto_tag` | Has the LLM add tags to the summary | true |
+| `--num_tags` | Number of tags for the LLM to generate | 5 |
 
 ## Output Format
 
