@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Document Summarizer Script
-Summarizes documents in a folder using an OpenAI-compatible API.
-Supports markdown, pdf, and txt files.
-"""
 import argparse
 import json
 import os
@@ -11,7 +5,6 @@ import re
 import sys
 from pathlib import Path
 
-# Import required libraries
 try:
     import requests
 except ImportError:
@@ -72,7 +65,6 @@ def summarize_content(content: str, api_config: dict, timeout: int = 300, summar
     if api_key:
         headers['Authorization'] = f'Bearer {api_key}'
 
-    # Build the prompt with optional word count target and auto-tagging
     word_count_instruction = ""
     if summary_length:
         word_count_instruction = f" The summary should be approximately {summary_length} words long."
@@ -108,15 +100,12 @@ Summary:"""
     result = response.json()
     full_response = result['choices'][0]['message']['content']
 
-    # Parse tags from response if auto-tagging is enabled
     tags = []
     if auto_tag:
-        # Look for [TAGS: ...] in the response
         tag_match = re.search(r'\[TAGS:\s*(.*?)\]', full_response, re.IGNORECASE)
         if tag_match:
             tags_str = tag_match.group(1)
             tags = [tag.strip() for tag in tags_str.split(',')]
-            # Remove the tags line from the summary
             full_response = re.sub(r'\s*\[TAGS:.*?\]', '', full_response, flags=re.IGNORECASE)
 
     return full_response.strip(), tags
@@ -130,12 +119,10 @@ def get_supported_files(folder_path: Path, recursive: bool = True) -> list:
 
     files = set()
     if recursive:
-        # Recursively search subdirectories
         for ext in extensions:
             files.update(folder_path.rglob(f'*{ext}'))
             files.update(folder_path.rglob(f'*{ext.upper()}'))
     else:
-        # Only search in the specified folder (no subdirectories)
         for ext in extensions:
             files.update(folder_path.glob(f'*{ext}'))
             files.update(folder_path.glob(f'*{ext.upper()}'))
@@ -147,7 +134,6 @@ def get_relative_path(file_path: Path, base_path: Path) -> str:
     """Get relative path from base folder for display purposes."""
     try:
         rel_path = file_path.relative_to(base_path)
-        # If file is in a subdirectory, include the path
         if rel_path.parent != Path('.'):
             return str(rel_path.parent / rel_path.stem)
         return rel_path.stem
@@ -160,14 +146,12 @@ def main():
         description='Summarize documents in a folder using an OpenAI-compatible API'
     )
 
-    # Configuration file options
     parser.add_argument(
         '--config', '-c',
         type=str,
         help='Path to config.json file'
     )
 
-    # Input/Output options
     parser.add_argument(
         '--folder', '-f',
         type=str,
@@ -184,7 +168,6 @@ def main():
         help='Disable recursive search in subfolders (default: recursive enabled)'
     )
 
-    # API options
     parser.add_argument(
         '--url',
         type=str,
@@ -201,7 +184,6 @@ def main():
         help='Model name to use (e.g., llama2, gpt-3.5-turbo)'
     )
 
-    # API behavior options
     parser.add_argument(
         '--timeout', '-t',
         type=int,
@@ -225,7 +207,6 @@ def main():
         help='Maximum characters to send to API, content is truncated if longer (default: 10000)'
     )
 
-    # Summary options
     parser.add_argument(
         '--summary-length',
         type=int,
@@ -233,7 +214,6 @@ def main():
         help='Target summary length in words'
     )
 
-    # Tag options
     parser.add_argument(
         '--tag',
         type=str,
@@ -251,13 +231,12 @@ def main():
         '--num-tags',
         type=int,
         dest='num_tags',
-        default=None,  # Changed from 5 to None
+        default=None,
         help='Number of tags to generate when using --auto-tag (default: 5)'
     )
 
     args = parser.parse_args()
 
-    # Load configuration from file if specified
     api_config = {}
     if args.config:
         if os.path.exists(args.config):
@@ -266,7 +245,6 @@ def main():
             print(f"Error: Config file not found: {args.config}")
             sys.exit(1)
 
-    # Override config with command line arguments (CLI takes precedence)
     if args.folder:
         api_config['folder'] = args.folder
     if args.url:
@@ -292,47 +270,39 @@ def main():
     if args.auto_tag:
         api_config['auto_tag'] = args.auto_tag
 
-    # Handle num_tags from CLI, override config if CLI was used
     if args.num_tags is not None:
         api_config['num_tags'] = args.num_tags
 
-    # Set defaults for any missing values
     api_config.setdefault('url', 'http://localhost:11434/v1/chat/completions')
     api_config.setdefault('timeout', 300)
     api_config.setdefault('output', 'summaries.md')
     api_config.setdefault('max_tokens', 1000)
     api_config.setdefault('temperature', 0.3)
     api_config.setdefault('max_content_length', 10000)
-    api_config.setdefault('num_tags', 5) # Default for tag generation
+    api_config.setdefault('num_tags', 5)
 
-    # Determine if we should search recursively
     recursive = not args.no_recursive
     if 'recursive' in api_config:
         recursive = api_config['recursive']
 
-    # Get tags and auto-tag setting
     manual_tags = api_config.get('tags', [])
     auto_tag = api_config.get('auto_tag', False)
     num_tags = api_config.get('num_tags', 5)
 
-    # Validate: can't use both manual tags and auto-tag
     if manual_tags and auto_tag:
         print("Error: Cannot use both --tag and --auto-tag together")
         sys.exit(1)
 
-    # Validate required configuration
     if 'url' not in api_config:
         print("Error: API URL must be provided via --url or config.json")
         sys.exit(1)
 
-    # Get folder path (default to current directory if not specified)
     folder_arg = api_config.get('folder', '.')
     folder_path = Path(folder_arg).resolve()
     if not folder_path.is_dir():
         print(f"Error: Folder not found: {folder_path}")
         sys.exit(1)
 
-    # Get supported files
     files = get_supported_files(folder_path, recursive=recursive)
     if not files:
         print(f"No supported files found in {folder_path}")
@@ -354,19 +324,16 @@ def main():
     elif manual_tags:
         print(f"Tags: {', '.join(manual_tags)}")
 
-    # Process each file
     results = []
     for file_path in files:
         print(f"\nProcessing: {file_path}")
         try:
             content = read_document(file_path)
 
-            # Truncate if content is too long
             max_length = api_config.get('max_content_length', 10000)
             if len(content) > max_length:
                 content = content[:max_length] + "...[truncated]"
 
-            # Get summary (and auto-generated tags if enabled)
             summary, generated_tags = summarize_content(
                 content,
                 api_config,
@@ -376,10 +343,8 @@ def main():
                 num_tags=num_tags
             )
 
-            # Get relative path for the title
             title = get_relative_path(file_path, folder_path)
 
-            # Determine which tags to use
             if auto_tag:
                 result_tags = generated_tags
             else:
@@ -413,13 +378,11 @@ def main():
                 'tags': []
             })
 
-    # Output results
     output_lines = []
     for result in results:
         output_lines.append(f"## {result['title']}\n")
         output_lines.append(f"{result['summary']}\n")
 
-        # Add tags if present
         if result['tags']:
             output_lines.append(f"\nTags: {', '.join(result['tags'])}\n")
 
@@ -427,7 +390,6 @@ def main():
 
     output_text = '\n'.join(output_lines)
 
-    # Write to output file
     output_path = Path(api_config['output'])
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(output_text)
